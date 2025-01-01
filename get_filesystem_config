@@ -8,17 +8,17 @@ LINE_TERMINATION=$'\r\n'
 OLD_IFS=$IFS
 IFS=$'\n'
 BUSYBOX="$2"
-if [ -n "$(adb shell id | grep "uid=0")" ];then
+if [ -n "$(termux-adb shell id | grep "uid=0")" ];then
     root='true'
-elif [ -z "$(adb shell su -c "id" | grep "uid=0")" ];then
+elif [ -z "$(termux-adb shell su -c "id" | grep "uid=0")" ];then
     echo "Please root your device, and try again."
     exit 1
 fi
 
 if [ -n $root ];then
-    fileSystemInfo=$(adb shell ls -aRZ /system)
+    fileSystemInfo=$(termux-adb shell ls -aRZ /system)
 else
-    fileSystemInfo=$(adb shell su -c "ls -aRZ /system")
+    fileSystemInfo=$(termux-adb shell su -c "ls -aRZ /system")
 fi
 
 if [ "$ACTION" = '--info' ];then
@@ -34,9 +34,9 @@ if [ "$ACTION" = '--info' ];then
             dir=$(echo $line | cut -d ':' -f1)
             path=$dir
             if [ -n $root ];then
-                line=$(adb shell ls -dZ $path)
+                line=$(termux-adb shell ls -dZ $path)
             else
-                line=$(adb shell su -c "ls -dZ $path")
+                line=$(termux-adb shell su -c "ls -dZ $path")
             fi
         else
             path=$dir/$(echo ${line##*:s0} | tr -d $LINE_TERMINATION | sed 's/^[ ]*//')
@@ -44,13 +44,13 @@ if [ "$ACTION" = '--info' ];then
         selabel="u:${line##*u:}"
         selabel=${selabel%% *}
         if [ -n $root ];then
-            uid=$(adb shell $BUSYBOX stat -c %u $path | tr -d $LINE_TERMINATION)
-            gid=$(adb shell $BUSYBOX stat -c %g $path | tr -d $LINE_TERMINATION)
-            perm=$(adb shell $BUSYBOX stat -c %a $path | tr -d $LINE_TERMINATION)
+            uid=$(termux-adb shell $BUSYBOX stat -c %u $path | tr -d $LINE_TERMINATION)
+            gid=$(termux-adb shell $BUSYBOX stat -c %g $path | tr -d $LINE_TERMINATION)
+            perm=$(termux-adb shell $BUSYBOX stat -c %a $path | tr -d $LINE_TERMINATION)
         else
-            uid=$(adb shell su -c "$BUSYBOX stat -c %u $path" | tr -d $LINE_TERMINATION)
-            gid=$(adb shell su -c "$BUSYBOX stat -c %g $path" | tr -d $LINE_TERMINATION)
-            perm=$(adb shell su -c "$BUSYBOX stat -c %a $path" | tr -d $LINE_TERMINATION)
+            uid=$(termux-adb shell su -c "$BUSYBOX stat -c %u $path" | tr -d $LINE_TERMINATION)
+            gid=$(termux-adb shell su -c "$BUSYBOX stat -c %g $path" | tr -d $LINE_TERMINATION)
+            perm=$(termux-adb shell su -c "$BUSYBOX stat -c %a $path" | tr -d $LINE_TERMINATION)
         fi
         #Remove blank in filename, it cause ota_from_target_files failed.
         path=$(echo $path | sed 's/ //g')
@@ -67,18 +67,18 @@ elif [ "$ACTION" = '--link' ];then
             dir=$(echo $line | cut -d ':' -f1)
             path=$dir
             if [ -n $root ];then
-                line=$(adb shell ls -dZ $path)
+                line=$(termux-adb shell ls -dZ $path)
             else
-                line=$(adb shell su -c "ls -dZ $path")
+                line=$(termux-adb shell su -c "ls -dZ $path")
             fi
         fi
         
         if [ ${line:0:1} == 'l' ];then
             path=$dir/$(echo ${line##*:s0} | tr -d $LINE_TERMINATION | sed 's/^[ ]*//')
             if [ -n $root ];then
-                link=$(adb shell $BUSYBOX readlink $path | tr -d $LINE_TERMINATION)
+                link=$(termux-adb shell $BUSYBOX readlink $path | tr -d $LINE_TERMINATION)
             else
-                link=$(adb shell su -c "$BUSYBOX readlink $path" | tr -d $LINE_TERMINATION)
+                link=$(termux-adb shell su -c "$BUSYBOX readlink $path" | tr -d $LINE_TERMINATION)
             fi
             echo "${path#\/}|$link"
         fi

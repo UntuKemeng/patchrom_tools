@@ -53,7 +53,7 @@ function wait_for_device_online {
     local timeout=120
     while [ $timeout -gt 0 ]
     do
-        if adb shell ls > /dev/null
+        if termux-adb shell ls > /dev/null
         then
             break
         fi
@@ -109,23 +109,23 @@ function dump_bootimage {
     if [ -f dumpimage.sh ];then
         ./dumpimage.sh $TARGET_FILES_DIR/BOOTABLE_IMAGES
     else
-        local info=`adb shell cat /etc/recovery.fstab | grep boot | sed -e "s/\s\+/:/g"`
+        local info=`termux-adb shell cat /etc/recovery.fstab | grep boot | sed -e "s/\s\+/:/g"`
         local fstype=`echo $info | cut -d":" -f2`
 
         if [ "$fstype" == "mtd" ]; then
-            mtdn=`adb shell cat /proc/mtd | grep boot | cut -f1 -d":"`
+            mtdn=`termux-adb shell cat /proc/mtd | grep boot | cut -f1 -d":"`
             device=/dev/$fstype/$mtdn
         else
             device=`echo $info | cut -d":" -f3`
         fi
-        adb pull $device $TARGET_FILES_DIR/BOOTABLE_IMAGES/boot.img
+        termux-adb pull $device $TARGET_FILES_DIR/BOOTABLE_IMAGES/boot.img
     fi
 }
 
 # In recovery mode, extract the recovery.fstab from device
 function extract_recovery_fstab {
     echo "Extract recovery.fstab from device"
-    adb shell cat /etc/recovery.fstab | awk '{print $1 "\t" $2 "\t" $3}'> $RECOVERY_ETC_DIR/recovery.fstab
+    termux-adb shell cat /etc/recovery.fstab | awk '{print $1 "\t" $2 "\t" $3}'> $RECOVERY_ETC_DIR/recovery.fstab
 }
 
 # In normal mode, build the recovery.fstab from device
@@ -143,7 +143,7 @@ function build_recovery_fstab {
     IFS_OLD=$IFS
     IFS=$'\n'
     cat /dev/null > $RECOVERY_ETC_DIR/recovery.fstab
-    for line in `adb shell cat /proc/mounts | grep -E "/system|/data|/cache" | cut -d " " -f1-3`
+    for line in `termux-adb shell cat /proc/mounts | grep -E "/system|/data|/cache" | cut -d " " -f1-3`
     do
         mount_fstype=`echo $line | cut -d " " -f2,3`
         device=`echo $line | cut -d " " -f1`
@@ -155,7 +155,7 @@ function build_recovery_fstab {
 # build apkcerts.txt
 function build_apkcerts {
     echo "Build apkcerts.txt"
-    adb pull /data/system/packages.xml $TARGET_FILES_DIR
+    termux-adb pull /data/system/packages.xml $TARGET_FILES_DIR
     python $TOOL_DIR/apkcerts.py $TARGET_FILES_DIR/packages.xml $META_DIR/apkcerts.txt
     for file in `ls $SYSTEM_DIR/framework/*.apk`
     do
@@ -171,17 +171,17 @@ function build_apkcerts {
 function build_filesystem_config {
     echo "Run getfilesysteminfo to build filesystem_config.txt"
     if [ $ANDROID_PLATFORM -gt 19 ];then
-        adb push $TOOL_DIR/target_files_template/OTA/bin/busybox /data/local/tmp/
-        adb shell chmod 755 /data/local/tmp/busybox
+        termux-adb push $TOOL_DIR/target_files_template/OTA/bin/busybox /data/local/tmp/
+        termux-adb shell chmod 755 /data/local/tmp/busybox
         bash $TOOL_DIR/get_filesystem_config --info /data/local/tmp/busybox | tee $META_DIR/filesystem_config.txt
         if [ $? -ne 0 ];then
             echo "Get file info failed"
             exit 1
         fi
     else
-        adb push $TOOL_DIR/releasetools/getfilesysteminfo /system/xbin
-        adb shell chmod 0777 /system/xbin/getfilesysteminfo
-        adb shell /system/xbin/getfilesysteminfo --info /system >> $META_DIR/filesystem_config.txt
+        termux-adb push $TOOL_DIR/releasetools/getfilesysteminfo /system/xbin
+        termux-adb shell chmod 0777 /system/xbin/getfilesysteminfo
+        termux-adb shell /system/xbin/getfilesysteminfo --info /system >> $META_DIR/filesystem_config.txt
         fs_config=`cat $META_DIR/filesystem_config.txt | col -b | sed -e '/getfilesysteminfo/d'`
         OLD_IFS=$IFS
         IFS=$'\n'
@@ -207,20 +207,20 @@ function recover_symlink {
             exit 1
         fi
     else
-        adb shell /system/xbin/getfilesysteminfo --link /system | sed -e '/\<su\>/d;/\<invoke-as\>/d' | sort > $SYSTEM_DIR/linkinfo.txt
-        adb shell rm /system/xbin/getfilesysteminfo
+        termux-adb shell /system/xbin/getfilesysteminfo --link /system | sed -e '/\<su\>/d;/\<invoke-as\>/d' | sort > $SYSTEM_DIR/linkinfo.txt
+        termux-adb shell rm /system/xbin/getfilesysteminfo
     fi
     python $TOOL_DIR/releasetools/recoverylink.py $TARGET_FILES_DIR
-    adb shell rm /system/xbin/getfilesysteminfo
+    termux-adb shell rm /system/xbin/getfilesysteminfo
 }
 
 function remount_system_device {
     echo "Remount /system to be writable"
 
-    if adb root | grep "cannot run" > /dev/null;then
-        device=`adb shell cat /proc/mounts | grep "/system" | cut -d " " -f 1`
+    if termux-adb root | grep "cannot run" > /dev/null;then
+        device=`termux-adb shell cat /proc/mounts | grep "/system" | cut -d " " -f 1`
         echo "You don't have a rooted kernel. Please run the following command mannually"
-        echo "(1) adb shell"
+        echo "(1) termux-adb shell"
         echo "(2) su"
         echo "(3) mount -o remount,rw $device /system"
         echo "(3) chmod 0777 /system /system/*"
@@ -232,10 +232,10 @@ function remount_system_device {
             echo -n "If you finish running the above commands on your phone(yes/no):"
             read answer
         done
-        if adb shell ls /system/xbin/getfilesysteminfo;then
+        if termux-adb shell ls /system/xbin/getfilesysteminfo;then
             return
         else
-            if adb push $TOOL_DIR/releasetools/getfilesysteminfo /system/xbin;then
+            if termux-adb push $TOOL_DIR/releasetools/getfilesysteminfo /system/xbin;then
                 return
             else
                 echo "Please double check your answer and if your phone has root privilege"
@@ -244,7 +244,7 @@ function remount_system_device {
         fi
     else
         sleep 1
-        adb remount
+        termux-adb remount
     fi
     sleep 1
 }
@@ -252,7 +252,7 @@ function remount_system_device {
 # build the SYSTEM dir under target_files
 function build_SYSTEM {
     echo "Extract the whole /system from device"
-    adb pull /system $SYSTEM_DIR
+    termux-adb pull /system $SYSTEM_DIR
     find $SYSTEM_DIR -name su | xargs rm -f
     find $SYSTEM_DIR -name invoke-as | xargs rm -f
     remount_system_device
@@ -310,8 +310,8 @@ copy_target_files_template
 if [ "$MODE" == "-r" ];then
     dump_bootimage
     extract_recovery_fstab
-    adb shell mount /system
-    adb shell mount /data
+    termux-adb shell mount /system
+    termux-adb shell mount /data
     sleep 1
 else
     extract_bootimage
@@ -326,5 +326,5 @@ zip_target_files
 build_ota_package
 
 if [ "$MODE" == "-r" ];then
-    adb shell umount /system
+    termux-adb shell umount /system
 fi

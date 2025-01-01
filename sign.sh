@@ -25,15 +25,15 @@ function delete_meta_info() {
 
 function sign_for_phone() {
     echo ">>> Sign apks under dir $1..."
-    for apk in `adb shell ls $1/*.apk | col -b`
+    for apk in `termux-adb shell ls $1/*.apk | col -b`
     do
         echo ">>> Sign for $apk"
         file=`basename $apk`
-        adb pull $apk $TMPDIR/$file
+        termux-adb pull $apk $TMPDIR/$file
         delete_meta_info $TMPDIR/$file
         java -jar $SIGNAPK $PEMKEY $PK8KEY $TMPDIR/$file $TMPDIR/$file.signed
         zipalign 4 $TMPDIR/$file.signed $TMPDIR/$file.signed.aligned
-        adb push $TMPDIR/$file.signed.aligned $1/$file
+        termux-adb push $TMPDIR/$file.signed.aligned $1/$file
     done
 }
 
@@ -60,7 +60,7 @@ fi
 
 if [ "$1" == "sign.phone" ]
 then
-    adb remount || { echo "Failed to remount the device"; exit 10;}
+    termux-adb remount || { echo "Failed to remount the device"; exit 10;}
     mkdir -p $TMPDIR
     sign_for_phone "/system/app"
     sign_for_phone "/system/framework"
@@ -87,9 +87,9 @@ then
     zipalign 4 $SIGNED $ALIGNED
     if [ -n "$2" ]
     then
-        adb remount || { echo "Failed to remount the device"; exit 10;}
+        termux-adb remount || { echo "Failed to remount the device"; exit 10;}
         echo "push $ALIGNED $2"
-        adb push $ALIGNED $2
+        termux-adb push $ALIGNED $2
         rm $SIGNED
         rm $ALIGNED
     else
